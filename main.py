@@ -1,6 +1,5 @@
 import pandas as pd
 import streamlit as st
-import re
 
 # Set up the page configuration
 st.set_page_config(layout="wide", page_title="UNIONDIGITAL", page_icon="📊", initial_sidebar_state="expanded")
@@ -63,9 +62,6 @@ if uploaded_file is not None:
             'Day', 'Collector', 'Campaign', 'Total Calls', 'Total Connected', 'Total PTP', 'Total RPC', 'PTP Amount', 'Balance Amount', 'Talk Time (HH:MM:SS)'
         ])
 
-        # Regular expression pattern for matching emails
-        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-
         # Group by 'Date' and 'Remark By' (Collector)
         for (date, collector), collector_group in filtered_df[~filtered_df['Remark By'].str.upper().isin(['SYSTEM'])].groupby([filtered_df['Date'].dt.date, 'Remark By']):
             # Extract campaign info from 'Client' column if it contains the campaign information
@@ -74,7 +70,7 @@ if uploaded_file is not None:
             # Calculate the metrics
             total_connected = collector_group[
                 (collector_group['Call Status'] == 'CONNECTED') & 
-                (~collector_group['Remark'].str.contains(email_pattern, regex=True, na=False))
+                (~collector_group['Status'].str.contains('EMAIL', na=False))  # Exclude rows with 'EMAIL' in 'Status'
             ]['Account No.'].count()
 
             total_ptp = collector_group[collector_group['Status'].str.contains('PTP', na=False) & (collector_group['PTP Amount'] != 0)]['Account No.'].nunique()
