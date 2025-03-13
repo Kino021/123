@@ -47,33 +47,49 @@ if uploaded_file is not None:
     col1, col2 = st.columns(2)
 
     with col1:
-       # Get the total calls (Remark By contains "COLLECTOR" and exclude "SYSTEM")
-total_calls = df[df['Remark By'].str.contains("COLLECTOR", case=False, na=False) & 
-                 ~df['Remark By'].str.contains("SYSTEM", case=False, na=False)]
-total_calls_count = total_calls.groupby('Remark By').size()
+        # Get the total calls (Remark By contains "COLLECTOR" and exclude "SYSTEM")
+        total_calls = df[df['Remark By'].str.contains("COLLECTOR", case=False, na=False) & 
+                         ~df['Remark By'].str.contains("SYSTEM", case=False, na=False)]
+        total_calls_count = total_calls.groupby('Remark By').size()
 
-# Get the total connected (Call Status contains "CONNECTED" and exclude if Status contains "EMAIL")
-total_connected = df[df['Call Status'].str.contains("CONNECTED", case=False, na=False) & 
-                     ~df['Status'].str.contains("EMAIL", case=False, na=False)]
-total_connected_count = total_connected.groupby('Remark By').size()
+        # Get the total connected (Call Status contains "CONNECTED" and exclude if Status contains "EMAIL")
+        total_connected = df[df['Call Status'].str.contains("CONNECTED", case=False, na=False) & 
+                             ~df['Status'].str.contains("EMAIL", case=False, na=False)]
+        total_connected_count = total_connected.groupby('Remark By').size()
 
-# Get the total RPC (Status contains "POSITIVE")
-total_rpc = df[df['Status'].str.contains("POSITIVE", case=False, na=False)]
-total_rpc_count = total_rpc.groupby('Remark By').size()
+        # Get the total RPC (Status contains "POSITIVE")
+        total_rpc = df[df['Status'].str.contains("POSITIVE", case=False, na=False)]
+        total_rpc_count = total_rpc.groupby('Remark By').size()
 
-# Get the total PTP count (Status contains "PTP" and exclude if PTP Amount contains 0.00)
-total_ptp = df[df['Status'].str.contains("PTP", case=False, na=False) & 
-               ~df['PTP Amount'].astype(str).str.contains("0.00", na=False)]
-total_ptp_count = total_ptp.groupby('Remark By').size()
+        # Get the total PTP count (Status contains "PTP" and exclude if PTP Amount contains 0.00)
+        total_ptp = df[df['Status'].str.contains("PTP", case=False, na=False) & 
+                       ~df['PTP Amount'].astype(str).str.contains("0.00", na=False)]
+        total_ptp_count = total_ptp.groupby('Remark By').size()
 
-# Get the total PTP amount (PTP Amount contains an amount and exclude if 0.00)
-total_ptp_amount = df[df['PTP Amount'].astype(str).str.contains(r'\d+\.\d{2}', na=False) & 
-                      ~df['PTP Amount'].astype(str).str.contains("0.00", na=False)]
-total_ptp_amount_sum = total_ptp_amount.groupby('Remark By')['PTP Amount'].sum()
+        # Get the total PTP amount (PTP Amount contains an amount and exclude if 0.00)
+        total_ptp_amount = df[df['PTP Amount'].astype(str).str.contains(r'\d+\.\d{2}', na=False) & 
+                              ~df['PTP Amount'].astype(str).str.contains("0.00", na=False)]
+        total_ptp_amount_sum = total_ptp_amount.groupby('Remark By')['PTP Amount'].sum()
 
-# Get the total OB (based on your data structure, if it's under the 'Balance' column or other logic)
-total_ob = df[df['Balance'].notna() & (df['Balance'] > 0)]  # Adjust condition if OB is defined differently
-total_ob_sum = total_ob.groupby('Remark By')['Balance'].sum()
+        # Get the total OB (based on your data structure, if it's under the 'Balance' column or other logic)
+        total_ob = df[df['Balance'].notna() & (df['Balance'] > 0)]  # Adjust condition if OB is defined differently
+        total_ob_sum = total_ob.groupby('Remark By')['Balance'].sum()
 
-# Get total talk time (Summing the 'Talk Time' column if present)
-total_talk_time = df.groupby('Remark By')['Talk Time'].sum()
+        # Get total talk time (Summing the 'Talk Time' column if present)
+        total_talk_time = df.groupby('Remark By')['Talk Time'].sum()
+
+        # Create a DataFrame to display the results
+        summary = pd.DataFrame({
+            'Total Calls': total_calls_count,
+            'Total Connected': total_connected_count,
+            'Total RPC': total_rpc_count,
+            'Total PTP Count': total_ptp_count,
+            'Total PTP Amount': total_ptp_amount_sum,
+            'Total OB': total_ob_sum,
+            'Total Talk Time': total_talk_time
+        }).fillna(0)  # Fill missing values with 0 (in case some agents have no data for certain metrics)
+
+        # Display the summary table
+        st.dataframe(summary)
+
+    # In case you want to allow the user to download the
