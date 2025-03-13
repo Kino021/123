@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 
 # Set up the page configuration
-st.set_page_config(layout="wide", page_title="QWERTY", page_icon="📊", initial_sidebar_state="expanded")
+st.set_page_config(layout="wide", page_title="AGENTS BEHAVIOR", page_icon="📊", initial_sidebar_state="expanded")
 
 # Apply dark mode styling
 st.markdown(
@@ -35,64 +35,126 @@ uploaded_file = st.sidebar.file_uploader("Upload Daily Remark File", type="xlsx"
 if uploaded_file is not None:
     df = load_data(uploaded_file)
 
-    # Ensure 'Time' column is in datetime format and 'Date' column is properly converted
+    # Ensure 'Time' column is in datetime format
     df['Time'] = pd.to_datetime(df['Time'], errors='coerce').dt.time
-    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')  # Ensure the 'Date' column is in datetime format
 
     # Filter out specific users based on 'Remark By'
-    exclude_users = ['JTAGRAMON']
+    exclude_users = ['FGPANGANIBAN', 'KPILUSTRISIMO', 'BLRUIZ', 'MMMEJIA', 'SAHERNANDEZ', 'GPRAMOS',
+                     'JGCELIZ', 'SPMADRID', 'RRCARLIT', 'MEBEJER',
+                     'SEMIJARES', 'GMCARIAN', 'RRRECTO', 'EASORIANO', 'EUGALERA','JATERRADO','LMLABRADOR']
     df = df[~df['Remark By'].isin(exclude_users)]
 
     # Create the columns layout
     col1, col2 = st.columns(2)
 
     with col1:
-        # Get the total calls (Remark By contains "COLLECTOR" and exclude "SYSTEM")
-        total_calls = df[df['Remark By'].str.contains("COLLECTOR", case=False, na=False) & 
-                         ~df['Remark By'].str.contains("SYSTEM", case=False, na=False)]
-        total_calls_count = total_calls.groupby('Remark By').size()
+        st.write("## Summary Table by Collector per Day")
 
-        # Get the total connected (Call Status contains "CONNECTED" and exclude if Status contains "EMAIL")
-        total_connected = df[df['Call Status'].str.contains("CONNECTED", case=False, na=False) & 
-                             ~df['Status'].str.contains("EMAIL", case=False, na=False)]
-        total_connected_count = total_connected.groupby('Remark By').size()
+        # Add date filter
+        min_date = df['Date'].min().date()
+        max_date = df['Date'].max().date()
+        start_date, end_date = st.date_input("Select date range", [min_date, max_date], min_value=min_date, max_value=max_date)
 
-        # Get the total RPC (Status contains "POSITIVE")
-        total_rpc = df[df['Status'].str.contains("POSITIVE", case=False, na=False)]
-        total_rpc_count = total_rpc.groupby('Remark By').size()
+        filtered_df = df[(df['Date'].dt.date >= start_date) & (df['Date'].dt.date <= end_date)]
 
-        # Get the total PTP count (Status contains "PTP" and exclude if PTP Amount contains 0.00)
-        total_ptp = df[df['Status'].str.contains("PTP", case=False, na=False) & 
-                       ~df['PTP Amount'].astype(str).str.contains("0.00", na=False)]
-        total_ptp_count = total_ptp.groupby('Remark By').size()
+        # Initialize an empty DataFrame for the summary table by collector
+        collector_summary = pd.DataFrame(columns=[ 
+            'Day', 'Collector', 'Campaign', 'Total Calls', 'Total Connected', 'Total PTP', 'Total RPC', 'PTP Amount', 'Balance Amount', 'Talk Time (HH:MM:SS)'
+        ])
 
-        # Get the total PTP amount (PTP Amount contains an amount and exclude if 0.00)
-        total_ptp_amount = df[df['PTP Amount'].astype(str).str.contains(r'\d+\.\d{2}', na=False) & 
-                              ~df['PTP Amount'].astype(str).str.contains("0.00", na=False)]
-        total_ptp_amount_sum = total_ptp_amount.groupby('Remark By')['PTP Amount'].sum()
+        # Group by 'Date' and 'Remark By' (Collector)
+        for (date, collector), collector_group in filtered_df[~filtered_df['Remark By'].str.upper().isin(['SYSTEM'])].groupby([filtered_df['Date'].dt.date, 'Remark By']):
+            # Extract campaign info from 'Client' column if it contains the campaign information
+            campaign = collector_group['Client'].iloc[0] if 'Client' in collector_group.columns else 'N/A'
 
-        # Get the total OB (based on your data structure, if it's under the 'Balance' column or other logic)
-        total_ob = df[df['Balance'].notna() & (df['Balance'] > 0)]  # Adjust condition if OB is defined differently
-        total_ob_sum = total_ob.groupby('Remark By')['Balance'].sum()
+            # Calculate the metrics
+            total_connected = collector_group[collector_group['Call Status'] == 'CONNECTED']['Account No.'].count()
+            total_ptp = collector_group[collector_group['Status'].str.contains('PTP', na=False) & (collector_group['PTP Amount'] != 0)]['Account No.'].nunique()
+            total_rpc = collector_group[collector_group['Status'].str.contains('RPC', na=False)]['Account No.'].nunique()
+            ptp_amount = collector_group[collector_group['Status'].str.contains('PTP', na=False) & (collector_group['PTP Amount'] != 0)]['PTP Amount'].sum()
 
-        # Create a DataFrame to display the results (without Talk Time)
-        summary = pd.DataFrame({
-            'Total Calls': total_calls_count,
-            'Total Connected': total_connected_count,
-            'Total RPC': total_rpc_count,
-            'Total PTP Count': total_ptp_count,
-            'Total PTP Amount': total_ptp_amount_sum,
-            'Total OB': total_ob_sum
-        }).fillna(0)  # Fill missing values with 0 (in case some agents have no data for certain metrics)
+            # Filter rows where PTP Amount is not zero for balance calculation
+            balance_amount = collector_group[(collector_group['Status'].str.contains('PTP', na=False)) & (collector_group['PTP Amount'] != 0)]['Balance'].sum()
 
-        # Display the summary table
-        st.dataframe(summary)
+            # Round 'PTP Amount' and 'Balance Amount' to 2 decimal places
+            ptp_amount = round(ptp_amount, 2)
+            balance_amount = round(balance_amount, 2)
 
-    # In case you want to allow the user to download the summary as a CSV
-    with col2:
-        st.download_button(
-            label="Download Summary CSV",
-            data=summary.to_csv(index=True),
-            file_name="daily_remark_summary.csv",
-            mime="text/csv"
-        )
+            # Calculate talk time in minutes
+            total_talk_time = collector_group['Talk Time Duration'].sum() / 60  # Convert from seconds to minutes
+
+            # Round the total talk time to nearest second and convert to HH:MM:SS format
+            rounded_talk_time = round(total_talk_time * 60)  # Round to nearest second
+            talk_time_str = str(pd.to_timedelta(rounded_talk_time, unit='s'))  # Convert to Timedelta and then to string
+            formatted_talk_time = talk_time_str.split()[2]  # Extract the time part from the string (HH:MM:SS)
+
+            # Add the total calls (filter rows based on Remark Type)
+            total_calls = collector_group[
+                collector_group['Remark Type'].str.contains('OUTGOING|FOLLOWUP|PREDICTIVE', case=False, na=False) & 
+                ~collector_group['Remark By'].isin(exclude_users)
+            ].shape[0]
+
+            # Add the row to the summary with Total Calls after Collector
+            collector_summary = pd.concat([collector_summary, pd.DataFrame([{
+                'Day': date,
+                'Collector': collector,
+                'Campaign': campaign,  # Add Campaign information here
+                'Total Calls': total_calls,  # Move Total Calls after Collector
+                'Total Connected': total_connected,
+                'Total PTP': total_ptp,
+                'Total RPC': total_rpc,
+                'PTP Amount': ptp_amount,
+                'Balance Amount': balance_amount,
+                'Talk Time (HH:MM:SS)': formatted_talk_time,  # Add formatted talk time
+            }])], ignore_index=True)
+
+        # Rank each campaign by 'PTP Amount' in descending order and get the top 2
+        top_campaigns = collector_summary.groupby('Campaign').apply(lambda x: x.nlargest(2, 'PTP Amount')).reset_index(drop=True)
+
+        # Round 'PTP Amount' to 2 decimal places for the top campaigns
+        top_campaigns['PTP Amount'] = top_campaigns['PTP Amount'].round(2)
+
+        # Round 'Balance Amount' to 2 decimal places for the top campaigns
+        top_campaigns['Balance Amount'] = top_campaigns['Balance Amount'].round(2)
+
+        # Display the top 2 collectors per campaign
+        st.write("## Top 2 Collectors per Campaign (by PTP Amount)")
+        st.write(top_campaigns)
+
+        # Calculate and append totals for the collector summary
+        total_calls = collector_summary['Total Calls'].sum()  # Total Calls count across all collectors
+
+        # Calculate the total talk time for the total row
+        total_talk_time_minutes = collector_summary['Talk Time (HH:MM:SS)'].apply(
+            lambda x: pd.to_timedelta(x).total_seconds() / 60).sum()  # Sum the talk time in minutes
+
+        # Round the total talk time to the nearest second before converting to HH:MM:SS
+        rounded_total_talk_time_minutes = round(total_talk_time_minutes)
+
+        # Format the total talk time as HH:MM:SS
+        rounded_total_talk_time_seconds = round(rounded_total_talk_time_minutes * 60)  # Round to nearest second
+        total_talk_time_str = str(pd.to_timedelta(rounded_total_talk_time_seconds, unit='s')).split()[2]
+
+        total_row = pd.DataFrame([{
+            'Day': 'Total',
+            'Collector': '',
+            'Campaign': '',
+            'Total Calls': total_calls,  # Total Calls is now after Collector
+            'Total Connected': collector_summary['Total Connected'].sum(),
+            'Total PTP': collector_summary['Total PTP'].sum(),
+            'Total RPC': collector_summary['Total RPC'].sum(),
+            'PTP Amount': collector_summary['PTP Amount'].sum(),
+            'Balance Amount': collector_summary['Balance Amount'].sum(),
+            'Talk Time (HH:MM:SS)': total_talk_time_str,  # Add formatted total talk time
+        }])
+
+        collector_summary = pd.concat([collector_summary, total_row], ignore_index=True)
+
+        # Round off numeric columns to 2 decimal places for 'PTP Amount' and 'Balance Amount'
+        collector_summary[['PTP Amount', 'Balance Amount']] = collector_summary[['PTP Amount', 'Balance Amount']].round(2)
+
+        # Reorder columns to ensure Total Calls is after Collector and add Campaign after Collector
+        column_order = ['Day', 'Collector', 'Campaign', 'Total Calls', 'Total Connected', 'Total PTP', 'Total RPC', 'PTP Amount', 'Balance Amount', 'Talk Time (HH:MM:SS)']
+        collector_summary = collector_summary[column_order]
+
+        st.write(collector_summary)
