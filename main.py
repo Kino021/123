@@ -57,13 +57,17 @@ if uploaded_file is not None:
         # Date input with proper range selection
         selected_dates = st.date_input("Select date range", [min_date, max_date], min_value=min_date, max_value=max_date)
         
-        # Check if the selected_dates is a single date or a range of dates
+        # Check if the selected_dates is a list or a single date
         if isinstance(selected_dates, list):  # If it's a range
             start_date, end_date = selected_dates  # Unpack the start and end date
         else:  # If it's a single date
             start_date = end_date = selected_dates  # Set both as the selected single date
 
-        filtered_df = df[(df['Date'].dt.date >= start_date) & (df['Date'].dt.date <= end_date)]
+        # Convert start_date and end_date to datetime with time set to midnight
+        start_date = pd.to_datetime(start_date).normalize()  # Normalize removes the time part, sets to 00:00:00
+        end_date = pd.to_datetime(end_date).normalize()  # Normalize removes the time part, sets to 00:00:00
+
+        filtered_df = df[(df['Date'].dt.normalize() >= start_date) & (df['Date'].dt.normalize() <= end_date)]
 
         # Initialize an empty DataFrame for the summary table by collector
         collector_summary = pd.DataFrame(columns=[ 
