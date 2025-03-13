@@ -54,14 +54,14 @@ if uploaded_file is not None:
         min_date = df['Date'].min().date()
         max_date = df['Date'].max().date()
 
-        # Fix for date input selection
+        # Date input with proper range selection
         selected_dates = st.date_input("Select date range", [min_date, max_date], min_value=min_date, max_value=max_date)
         
-        # If only one date is selected, the selected_dates will be a single-element list
-        if isinstance(selected_dates, list) and len(selected_dates) == 1:
-            start_date = end_date = selected_dates[0]  # Same date for start and end
-        else:
-            start_date, end_date = selected_dates  # For date range, unpack correctly
+        # Check if the selected_dates is a single date or a range of dates
+        if isinstance(selected_dates, list):  # If it's a range
+            start_date, end_date = selected_dates  # Unpack the start and end date
+        else:  # If it's a single date
+            start_date = end_date = selected_dates  # Set both as the selected single date
 
         filtered_df = df[(df['Date'].dt.date >= start_date) & (df['Date'].dt.date <= end_date)]
 
