@@ -89,8 +89,7 @@ if uploaded_file is not None:
             formatted_talk_time = talk_time_str.split()[2]  # Extract the time part from the string (HH:MM:SS)
 
             # Add the total calls (filter rows based on Remark Type)
-            total_calls = collector_group[
-                collector_group['Remark Type'].str.contains('OUTGOING|FOLLOWUP|PREDICTIVE', case=False, na=False) & 
+            total_calls = collector_group[collector_group['Remark Type'].str.contains('OUTGOING|FOLLOWUP|PREDICTIVE', case=False, na=False) & 
                 ~collector_group['Remark By'].isin(exclude_users)
             ].shape[0]
 
@@ -107,19 +106,6 @@ if uploaded_file is not None:
                 'Balance Amount': balance_amount,
                 'Talk Time (HH:MM:SS)': formatted_talk_time,  # Add formatted talk time
             }])], ignore_index=True)
-
-        # Rank each campaign by 'PTP Amount' in descending order and get the top 2
-        top_campaigns = collector_summary.groupby('Campaign').apply(lambda x: x.nlargest(2, 'PTP Amount')).reset_index(drop=True)
-
-        # Round 'PTP Amount' to 2 decimal places for the top campaigns
-        top_campaigns['PTP Amount'] = top_campaigns['PTP Amount'].round(2)
-
-        # Round 'Balance Amount' to 2 decimal places for the top campaigns
-        top_campaigns['Balance Amount'] = top_campaigns['Balance Amount'].round(2)
-
-        # Display the top 2 collectors per campaign
-        st.write("## Top 2 Collectors per Campaign (by PTP Amount)")
-        st.write(top_campaigns)
 
         # Calculate and append totals for the collector summary
         total_calls = collector_summary['Total Calls'].sum()  # Total Calls count across all collectors
