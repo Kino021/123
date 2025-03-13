@@ -67,7 +67,10 @@ if uploaded_file is not None:
         start_date = pd.to_datetime(start_date).normalize()  # Normalize removes the time part, sets to 00:00:00
         end_date = pd.to_datetime(end_date).normalize()  # Normalize removes the time part, sets to 00:00:00
 
-        filtered_df = df[(df['Date'].dt.normalize() >= start_date) & (df['Date'].dt.normalize() <= end_date)]
+        # Normalize the df['Date'] column to remove the time part and make the comparison consistent
+        df['Date'] = pd.to_datetime(df['Date']).dt.normalize()
+
+        filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
 
         # Initialize an empty DataFrame for the summary table by collector
         collector_summary = pd.DataFrame(columns=[ 
