@@ -54,27 +54,16 @@ if uploaded_file is not None:
         min_date = df['Date'].min().date()
         max_date = df['Date'].max().date()
 
-        # Date input with proper range selection
+        # Fix for date input selection
         selected_dates = st.date_input("Select date range", [min_date, max_date], min_value=min_date, max_value=max_date)
         
-        # Check if the selected_dates is a list or a single date
-        if isinstance(selected_dates, list):  # If it's a range
-            start_date, end_date = selected_dates  # Unpack the start and end date
-        else:  # If it's a single date
-            start_date = end_date = selected_dates  # Set both as the selected single date
+        # If only one date is selected, the selected_dates will be a single-element list
+        if isinstance(selected_dates, list) and len(selected_dates) == 1:
+            start_date = end_date = selected_dates[0]  # Same date for start and end
+        else:
+            start_date, end_date = selected_dates  # For date range, unpack correctly
 
-        # Ensure both start_date and end_date are datetime.date
-        if isinstance(start_date, pd.Timestamp):
-            start_date = start_date.date()  # Convert to datetime.date if it's a Timestamp
-
-        if isinstance(end_date, pd.Timestamp):
-            end_date = end_date.date()  # Convert to datetime.date if it's a Timestamp
-
-        # Normalize the df['Date'] column to datetime.date for comparison
-        df['Date'] = pd.to_datetime(df['Date']).dt.date  # Convert to datetime.date without time part
-
-        # Filter the dataframe by the selected date range
-        filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+        filtered_df = df[(df['Date'].dt.date >= start_date) & (df['Date'].dt.date <= end_date)]
 
         # Initialize an empty DataFrame for the summary table by collector
         collector_summary = pd.DataFrame(columns=[ 
@@ -82,7 +71,7 @@ if uploaded_file is not None:
         ])
 
         # Group by 'Date' and 'Remark By' (Collector)
-        for (date, collector), collector_group in filtered_df[~filtered_df['Remark By'].str.upper().isin(['SYSTEM'])].groupby([filtered_df['Date'], 'Remark By']):
+        for (date, collector), collector_group in filtered_df[~filtered_df['Remark By'].str.upper().isin(['SYSTEM'])].groupby([filtered_df['Date'].dt.date, 'Remark By']):
             # Extract campaign info from 'Client' column if it contains the campaign information
             campaign = collector_group['Client'].iloc[0] if 'Client' in collector_group.columns else 'N/A'
 
