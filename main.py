@@ -75,21 +75,24 @@ if uploaded_file is not None:
         total_ob = df[df['Balance'].notna() & (df['Balance'] > 0)]  # Adjust condition if OB is defined differently
         total_ob_sum = total_ob.groupby('Remark By')['Balance'].sum()
 
-        # Get total talk time (Summing the 'Talk Time' column if present)
-        total_talk_time = df.groupby('Remark By')['Talk Time'].sum()
-
-        # Create a DataFrame to display the results
+        # Create a DataFrame to display the results (without Talk Time)
         summary = pd.DataFrame({
             'Total Calls': total_calls_count,
             'Total Connected': total_connected_count,
             'Total RPC': total_rpc_count,
             'Total PTP Count': total_ptp_count,
             'Total PTP Amount': total_ptp_amount_sum,
-            'Total OB': total_ob_sum,
-            'Total Talk Time': total_talk_time
+            'Total OB': total_ob_sum
         }).fillna(0)  # Fill missing values with 0 (in case some agents have no data for certain metrics)
 
         # Display the summary table
         st.dataframe(summary)
 
-    # In case you want to allow the user to download the
+    # In case you want to allow the user to download the summary as a CSV
+    with col2:
+        st.download_button(
+            label="Download Summary CSV",
+            data=summary.to_csv(index=True),
+            file_name="daily_remark_summary.csv",
+            mime="text/csv"
+        )
