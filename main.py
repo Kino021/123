@@ -63,13 +63,14 @@ if uploaded_file is not None:
         else:  # If it's a single date
             start_date = end_date = selected_dates  # Set both as the selected single date
 
-        # Convert start_date and end_date to datetime with time set to midnight
-        start_date = pd.to_datetime(start_date).normalize()  # Normalize removes the time part, sets to 00:00:00
-        end_date = pd.to_datetime(end_date).normalize()  # Normalize removes the time part, sets to 00:00:00
+        # Ensure both start_date and end_date are datetime.date
+        start_date = pd.to_datetime(start_date).date()  # Convert to datetime.date
+        end_date = pd.to_datetime(end_date).date()  # Convert to datetime.date
 
-        # Normalize the df['Date'] column to remove the time part and make the comparison consistent
-        df['Date'] = pd.to_datetime(df['Date']).dt.normalize()
+        # Normalize the df['Date'] column to datetime.date for comparison
+        df['Date'] = pd.to_datetime(df['Date']).dt.date  # Convert to datetime.date without time part
 
+        # Filter the dataframe by the selected date range
         filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
 
         # Initialize an empty DataFrame for the summary table by collector
@@ -78,7 +79,7 @@ if uploaded_file is not None:
         ])
 
         # Group by 'Date' and 'Remark By' (Collector)
-        for (date, collector), collector_group in filtered_df[~filtered_df['Remark By'].str.upper().isin(['SYSTEM'])].groupby([filtered_df['Date'].dt.date, 'Remark By']):
+        for (date, collector), collector_group in filtered_df[~filtered_df['Remark By'].str.upper().isin(['SYSTEM'])].groupby([filtered_df['Date'], 'Remark By']):
             # Extract campaign info from 'Client' column if it contains the campaign information
             campaign = collector_group['Client'].iloc[0] if 'Client' in collector_group.columns else 'N/A'
 
