@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 
 # Set up the page configuration
-st.set_page_config(layout="wide", page_title="AGENTS BEHAVIOR", page_icon="📊", initial_sidebar_state="expanded")
+st.set_page_config(layout="wide", page_title="UNIONDIGITAL", page_icon="📊", initial_sidebar_state="expanded")
 
 # Apply dark mode styling
 st.markdown(
