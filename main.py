@@ -64,8 +64,11 @@ if uploaded_file is not None:
             start_date = end_date = selected_dates  # Set both as the selected single date
 
         # Ensure both start_date and end_date are datetime.date
-        start_date = pd.to_datetime(start_date).date()  # Convert to datetime.date
-        end_date = pd.to_datetime(end_date).date()  # Convert to datetime.date
+        if isinstance(start_date, pd.Timestamp):
+            start_date = start_date.date()  # Convert to datetime.date if it's a Timestamp
+
+        if isinstance(end_date, pd.Timestamp):
+            end_date = end_date.date()  # Convert to datetime.date if it's a Timestamp
 
         # Normalize the df['Date'] column to datetime.date for comparison
         df['Date'] = pd.to_datetime(df['Date']).dt.date  # Convert to datetime.date without time part
