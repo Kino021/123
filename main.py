@@ -118,7 +118,7 @@ if uploaded_file is not None:
 
         # Balance ranges to consider
         balance_ranges = [
-            ('6,000.00 - 49,999.99', 6000, 49999.99),
+            ('0.00 - 49,999.99', 0.00, 49999.99),  # Updated range
             ('50,000.00 - 99,999.99', 50000, 99999.99),
             ('100,000.00 - UP', 100000, float('inf'))
         ]
