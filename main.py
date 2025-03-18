@@ -52,6 +52,9 @@ if uploaded_file is not None:
     ]
     df = df[~df['Remark'].str.contains('|'.join(excluded_remarks), case=False, na=False)]
 
+    # Exclude rows where 'Debtor' contains "DEFAULT_LEAD_"
+    df = df[~df['Debtor'].str.contains('DEFAULT_LEAD_', na=False)]
+
     # Check if data is empty after filtering
     if df.empty:
         st.warning("No valid data available after filtering.")
