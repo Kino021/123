@@ -56,10 +56,10 @@ if uploaded_file is not None:
     if df.empty:
         st.warning("No valid data available after filtering.")
     else:
-        # Function to generate the summary table for a specific balance range
+        # Function to generate the summary table for a specific balance range and date
         def generate_balance_summary(df, balance_range_name, lower_limit, upper_limit):
             summary_table = pd.DataFrame(columns=[ 
-                'Day', 'ACCOUNTS', 'TOTAL DIALED', 'PENETRATION RATE (%)', 'CONNECTED #', 
+                'Date', 'Balance Range', 'ACCOUNTS', 'TOTAL DIALED', 'PENETRATION RATE (%)', 'CONNECTED #', 
                 'CONNECTED RATE (%)', 'CONNECTED ACC', 'PTP ACC', 'PTP RATE', 'CALL DROP #', 
                 'SYSTEM DROP', 'CALL DROP RATIO #'
             ])
@@ -67,6 +67,7 @@ if uploaded_file is not None:
             # Filter data for current balance range
             balance_filtered_group = df[(df['Balance'] >= lower_limit) & (df['Balance'] <= upper_limit)]
 
+            # Group by Date
             for date, group in balance_filtered_group.groupby(df['Date'].dt.date):
                 accounts = group[group['Remark Type'].isin(['Predictive', 'Follow Up', 'Outgoing'])]['Account No.'].nunique()
                 total_dialed = group[group['Remark Type'].isin(['Predictive', 'Follow Up', 'Outgoing'])]['Account No.'].count()
@@ -82,7 +83,8 @@ if uploaded_file is not None:
                 call_drop_ratio = (system_drop / connected_acc * 100) if connected_acc != 0 else None
 
                 summary_table = pd.concat([summary_table, pd.DataFrame([{
-                    'Day': date,
+                    'Date': date,
+                    'Balance Range': balance_range_name,
                     'ACCOUNTS': accounts,
                     'TOTAL DIALED': total_dialed,
                     'PENETRATION RATE (%)': f"{round(penetration_rate)}%" if penetration_rate is not None else None,
@@ -105,7 +107,7 @@ if uploaded_file is not None:
             ('100,000.00 - UP', 100000, float('inf'))
         ]
 
-        # Display results for each balance range
+        # Display results for each balance range, grouped by Date
         for range_name, lower_limit, upper_limit in balance_ranges:
             st.subheader(f"Summary for Balance Range: {range_name}")
             balance_summary = generate_balance_summary(df, range_name, lower_limit, upper_limit)
@@ -114,4 +116,3 @@ if uploaded_file is not None:
                 st.dataframe(balance_summary)
             else:
                 st.warning(f"No data available for the {range_name} range.")
-
