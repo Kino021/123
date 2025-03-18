@@ -19,7 +19,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.title('DIALER PRODUCTIVITY PER CRITERIA OF BALANCE')
+st.title('DIALER REPORT PER CRITERIA OF BALANCE')
 
 @st.cache_data
 def load_data(uploaded_file):
