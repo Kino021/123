@@ -56,160 +56,26 @@ if uploaded_file is not None:
     if df.empty:
         st.warning("No valid data available after filtering.")
     else:
-        # Overall Combined Summary Table
-        def calculate_combined_summary(df):
-            summary_table = pd.DataFrame(columns=[ 
-                'Day', 'ACCOUNTS', 'TOTAL DIALED', 'PENETRATION RATE (%)', 'CONNECTED #', 
-                'CONNECTED RATE (%)', 'CONNECTED ACC', 'PTP ACC', 'PTP RATE', 'CALL DROP #', 
-                'SYSTEM DROP', 'CALL DROP RATIO #'
-            ]) 
 
-            for date, group in df.groupby(df['Date'].dt.date):
-                accounts = group[group['Remark Type'].isin(['Predictive', 'Follow Up', 'Outgoing'])]['Account No.'].nunique()
-                total_dialed = group[group['Remark Type'].isin(['Predictive', 'Follow Up', 'Outgoing'])]['Account No.'].count()
-                connected = group[group['Call Status'] == 'CONNECTED']['Account No.'].nunique()
-                penetration_rate = (total_dialed / accounts * 100) if accounts != 0 else None
-                connected_acc = group[group['Call Status'] == 'CONNECTED']['Account No.'].count()
-                connected_rate = (connected_acc / total_dialed * 100) if total_dialed != 0 else None
-                ptp_acc = group[(group['Status'].str.contains('PTP', na=False)) & (group['PTP Amount'] != 0)]['Account No.'].nunique()
-                ptp_rate = (ptp_acc / connected * 100) if connected != 0 else None
-                system_drop = group[(group['Status'].str.contains('DROPPED', na=False)) & (group['Remark By'] == 'SYSTEM')]['Account No.'].count()
-                call_drop_count = group[(group['Status'].str.contains('NEGATIVE CALLOUTS - DROP CALL', na=False)) & 
-                                        (~group['Remark By'].str.upper().isin(['SYSTEM']))]['Account No.'].count()
-                call_drop_ratio = (system_drop / connected_acc * 100) if connected_acc != 0 else None
-
-                summary_table = pd.concat([summary_table, pd.DataFrame([{
-                    'Day': date,
-                    'ACCOUNTS': accounts,
-                    'TOTAL DIALED': total_dialed,
-                    'PENETRATION RATE (%)': f"{round(penetration_rate)}%" if penetration_rate is not None else None,
-                    'CONNECTED #': connected,
-                    'CONNECTED RATE (%)': f"{round(connected_rate)}%" if connected_rate is not None else None,
-                    'CONNECTED ACC': connected_acc,
-                    'PTP ACC': ptp_acc,
-                    'PTP RATE': f"{round(ptp_rate)}%" if ptp_rate is not None else None,
-                    'CALL DROP #': call_drop_count,
-                    'SYSTEM DROP': system_drop,
-                    'CALL DROP RATIO #': f"{round(call_drop_ratio)}%" if call_drop_ratio is not None else None,
-                }])], ignore_index=True)
-
-            return summary_table
-
-        # Display Combined Summary Table
-        st.write("## Overall Combined Summary Table")
-        combined_summary_table = calculate_combined_summary(df)
-        st.write(combined_summary_table, container_width=True)
-
-        # Overall Predictive Summary Table
-        def calculate_predictive_summary(df):
-            summary_table = pd.DataFrame(columns=[ 
-                'Day', 'ACCOUNTS', 'TOTAL DIALED', 'PENETRATION RATE (%)', 'CONNECTED #', 
-                'CONNECTED RATE (%)', 'CONNECTED ACC', 'PTP ACC', 'PTP RATE', 'CALL DROP #', 
-                'SYSTEM DROP', 'CALL DROP RATIO #'
-            ]) 
-
-            # Filter the dataframe to include only 'Follow Up' and 'Predictive' Remark Types
-            df_filtered = df[df['Remark Type'].isin(['Predictive', 'Follow Up'])]
-
-            for date, group in df_filtered.groupby(df_filtered['Date'].dt.date):
-                accounts = group[group['Remark Type'].isin(['Predictive', 'Follow Up'])]['Account No.'].nunique()
-                total_dialed = group[group['Remark Type'].isin(['Predictive', 'Follow Up'])]['Account No.'].count()
-                connected = group[group['Call Status'] == 'CONNECTED']['Account No.'].nunique()
-                penetration_rate = (total_dialed / accounts * 100) if accounts != 0 else None
-                connected_acc = group[group['Call Status'] == 'CONNECTED']['Account No.'].count()
-                connected_rate = (connected_acc / total_dialed * 100) if total_dialed != 0 else None
-                ptp_acc = group[(group['Status'].str.contains('PTP', na=False)) & (group['PTP Amount'] != 0)]['Account No.'].nunique()
-                ptp_rate = (ptp_acc / connected * 100) if connected != 0 else None
-                system_drop = group[(group['Status'].str.contains('DROPPED', na=False)) & (group['Remark By'] == 'SYSTEM')]['Account No.'].count()
-                call_drop_count = group[(group['Status'].str.contains('NEGATIVE CALLOUTS - DROP CALL', na=False)) & 
-                                        (~group['Remark By'].str.upper().isin(['SYSTEM']))]['Account No.'].count()
-                call_drop_ratio = (system_drop / connected_acc * 100) if connected_acc != 0 else None
-
-                summary_table = pd.concat([summary_table, pd.DataFrame([{
-                    'Day': date,
-                    'ACCOUNTS': accounts,
-                    'TOTAL DIALED': total_dialed,
-                    'PENETRATION RATE (%)': f"{round(penetration_rate)}%" if penetration_rate is not None else None,
-                    'CONNECTED #': connected,
-                    'CONNECTED RATE (%)': f"{round(connected_rate)}%" if connected_rate is not None else None,
-                    'CONNECTED ACC': connected_acc,
-                    'PTP ACC': ptp_acc,
-                    'PTP RATE': f"{round(ptp_rate)}%" if ptp_rate is not None else None,
-                    'CALL DROP #': call_drop_count,
-                    'SYSTEM DROP': system_drop,
-                    'CALL DROP RATIO #': f"{round(call_drop_ratio)}%" if call_drop_ratio is not None else None,
-                }])], ignore_index=True)
-
-            return summary_table
-
-        # Display Overall Predictive Summary Table
-        st.write("## Overall Predictive Summary Table")
-        overall_predictive_table = calculate_predictive_summary(df)
-        st.write(overall_predictive_table)
-
-        # Overall Manual Summary Table
-        def calculate_manual_summary(df):
-            summary_table = pd.DataFrame(columns=[ 
-                'Day', 'ACCOUNTS', 'TOTAL DIALED', 'PENETRATION RATE (%)', 'CONNECTED #', 
-                'CONNECTED RATE (%)', 'CONNECTED ACC', 'PTP ACC', 'PTP RATE', 'CALL DROP #', 
-                'CALL DROP RATIO #'
-            ]) 
-
-            # Filter the dataframe to include only 'Outgoing' Remark Type
-            df_filtered = df[df['Remark Type'] == 'Outgoing']
-
-            for date, group in df_filtered.groupby(df_filtered['Date'].dt.date):
-                accounts = group[group['Remark Type'] == 'Outgoing']['Account No.'].nunique()
-                total_dialed = group[group['Remark Type'] == 'Outgoing']['Account No.'].count()
-                connected = group[group['Call Status'] == 'CONNECTED']['Account No.'].nunique()
-                penetration_rate = (total_dialed / accounts * 100) if accounts != 0 else None
-                connected_acc = group[group['Call Status'] == 'CONNECTED']['Account No.'].count()
-                connected_rate = (connected_acc / total_dialed * 100) if total_dialed != 0 else None
-                ptp_acc = group[(group['Status'].str.contains('PTP', na=False)) & (group['PTP Amount'] != 0)]['Account No.'].nunique()
-                ptp_rate = (ptp_acc / connected * 100) if connected != 0 else None
-                system_drop = group[(group['Status'].str.contains('DROPPED', na=False)) & (group['Remark By'] == 'SYSTEM')]['Account No.'].count()
-                call_drop_count = group[(group['Status'].str.contains('NEGATIVE CALLOUTS - DROP CALL', na=False)) & 
-                                        (~group['Remark By'].str.upper().isin(['SYSTEM']))]['Account No.'].count()
-                call_drop_ratio = (system_drop / connected_acc * 100) if connected_acc != 0 else None
-
-                summary_table = pd.concat([summary_table, pd.DataFrame([{
-                    'Day': date,
-                    'ACCOUNTS': accounts,
-                    'TOTAL DIALED': total_dialed,
-                    'PENETRATION RATE (%)': f"{round(penetration_rate)}%" if penetration_rate is not None else None,
-                    'CONNECTED #': connected,
-                    'CONNECTED RATE (%)': f"{round(connected_rate)}%" if connected_rate is not None else None,
-                    'CONNECTED ACC': connected_acc,
-                    'PTP ACC': ptp_acc,
-                    'PTP RATE': f"{round(ptp_rate)}%" if ptp_rate is not None else None,
-                    'CALL DROP #': call_drop_count,
-                    'CALL DROP RATIO #': f"{round(call_drop_ratio)}%" if call_drop_ratio is not None else None,
-                }])], ignore_index=True)
-
-            return summary_table
-
-        # Display Overall Manual Summary Table
-        st.write("## Overall Manual Summary Table")
-        overall_manual_table = calculate_manual_summary(df)
-        st.write(overall_manual_table)
-
-        # Summary Per Balance
+        # Summary Per Balance - Separated by Balance Ranges
         def calculate_summary_per_balance(df):
             balance_ranges = [
                 (6000.00, 49999.00),
                 (50000.00, 99999.00),
                 (100000.00, float('inf'))  # 100,000 and up
             ]
-            
-            summary_table = pd.DataFrame(columns=[ 
-                'Balance Range', 'Day', 'ACCOUNTS', 'TOTAL DIALED', 'PENETRATION RATE (%)', 'CONNECTED #', 
-                'CONNECTED RATE (%)', 'CONNECTED ACC', 'PTP ACC', 'PTP RATE', 'CALL DROP #', 
-                'SYSTEM DROP', 'CALL DROP RATIO #'
-            ]) 
+
+            balance_tables = {}
 
             for (balance_min, balance_max) in balance_ranges:
                 # Filter the dataframe by balance range
                 df_filtered = df[(df['Balance'] >= balance_min) & (df['Balance'] <= balance_max)]
+
+                summary_table = pd.DataFrame(columns=[ 
+                    'Day', 'ACCOUNTS', 'TOTAL DIALED', 'PENETRATION RATE (%)', 'CONNECTED #', 
+                    'CONNECTED RATE (%)', 'CONNECTED ACC', 'PTP ACC', 'PTP RATE', 'CALL DROP #', 
+                    'SYSTEM DROP', 'CALL DROP RATIO #'
+                ]) 
 
                 for date, group in df_filtered.groupby(df_filtered['Date'].dt.date):
                     accounts = group[group['Remark Type'].isin(['Predictive', 'Follow Up', 'Outgoing'])]['Account No.'].nunique()
@@ -226,7 +92,6 @@ if uploaded_file is not None:
                     call_drop_ratio = (system_drop / connected_acc * 100) if connected_acc != 0 else None
 
                     summary_table = pd.concat([summary_table, pd.DataFrame([{
-                        'Balance Range': f"${balance_min:,.2f} - ${balance_max:,.2f}",
                         'Day': date,
                         'ACCOUNTS': accounts,
                         'TOTAL DIALED': total_dialed,
@@ -241,10 +106,15 @@ if uploaded_file is not None:
                         'CALL DROP RATIO #': f"{round(call_drop_ratio)}%" if call_drop_ratio is not None else None,
                     }])], ignore_index=True)
 
-            return summary_table
+                balance_tables[f"${balance_min:,.2f} - ${balance_max:,.2f}"] = summary_table
 
-        # Display Summary Per Balance Table
+            return balance_tables
+
+        # Display Summary Per Balance Table Separated by Range
         st.write("## SUMMARY PER BALANCE")
-        summary_per_balance_table = calculate_summary_per_balance(df)
-        st.write(summary_per_balance_table)
 
+        balance_tables = calculate_summary_per_balance(df)
+        
+        for balance_range, table in balance_tables.items():
+            st.write(f"### Balance Range: {balance_range}")
+            st.write(table)
