@@ -61,7 +61,7 @@ if uploaded_file is not None:
             summary_table = pd.DataFrame(columns=[ 
                 'Date', 'Balance Range', 'ACCOUNTS', 'TOTAL DIALED', 'PENETRATION RATE (%)', 'CONNECTED #', 
                 'CONNECTED RATE (%)', 'CONNECTED ACC', 'PTP ACC', 'PTP RATE', 'CALL DROP #', 
-                'SYSTEM DROP', 'CALL DROP RATIO #'
+                'SYSTEM DROP', 'CALL DROP RATIO #', 'TOTAL PTP AMOUNT', 'TOTAL BALANCE'
             ])
 
             # Filter data for current balance range
@@ -69,6 +69,7 @@ if uploaded_file is not None:
 
             # Group by Date
             for date, group in balance_filtered_group.groupby(df['Date'].dt.date):
+                # Calculate the various metrics
                 accounts = group[group['Remark Type'].isin(['Predictive', 'Follow Up', 'Outgoing'])]['Account No.'].nunique()
                 total_dialed = group[group['Remark Type'].isin(['Predictive', 'Follow Up', 'Outgoing'])]['Account No.'].count()
                 connected = group[group['Call Status'] == 'CONNECTED']['Account No.'].nunique()
@@ -81,6 +82,16 @@ if uploaded_file is not None:
                 call_drop_count = group[(group['Status'].str.contains('NEGATIVE CALLOUTS - DROP CALL', na=False)) & 
                                         (~group['Remark By'].str.upper().isin(['SYSTEM']))]['Account No.'].count()
                 call_drop_ratio = (system_drop / connected_acc * 100) if connected_acc != 0 else None
+
+                # Calculate the TOTAL PTP AMOUNT and TOTAL BALANCE
+                # First, filter the rows where PTP Amount is not zero or NaN
+                ptp_data = group[group['PTP Amount'].notna() & (group['PTP Amount'] != 0)]
+
+                # Sum the PTP Amount for unique Account No.
+                total_ptp_amount = ptp_data.groupby('Account No.')['PTP Amount'].sum().sum()
+
+                # Sum the Balance for those same unique Account No.'s
+                total_balance = ptp_data.groupby('Account No.')['Balance'].sum().sum()
 
                 summary_table = pd.concat([summary_table, pd.DataFrame([{
                     'Date': date,
@@ -96,6 +107,8 @@ if uploaded_file is not None:
                     'CALL DROP #': call_drop_count,
                     'SYSTEM DROP': system_drop,
                     'CALL DROP RATIO #': f"{round(call_drop_ratio)}%" if call_drop_ratio is not None else None,
+                    'TOTAL PTP AMOUNT': total_ptp_amount,
+                    'TOTAL BALANCE': total_balance,
                 }])], ignore_index=True)
 
             return summary_table
