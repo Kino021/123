@@ -70,6 +70,9 @@ if uploaded_file is not None:
             # Filter data for current balance range
             balance_filtered_group = df[(df['Balance'] >= lower_limit) & (df['Balance'] <= upper_limit)]
 
+            # Exclude rows where "Call Status" contains "Others"
+            balance_filtered_group = balance_filtered_group[~balance_filtered_group['Call Status'].str.contains('Others', na=False)]
+
             # Group by Date
             for date, group in balance_filtered_group.groupby(df['Date'].dt.date):
                 # Calculate the various metrics
