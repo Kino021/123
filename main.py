@@ -24,114 +24,98 @@ st.title('DIALER REPORT PER CRITERIA OF BALANCE')
 @st.cache_data
 def load_data(uploaded_file):
     df = pd.read_excel(uploaded_file)
-
-    # Convert 'Date' to datetime if it isn't already
-    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-
-    # Exclude rows where the date is a Sunday (weekday() == 6)
-    df = df[df['Date'].dt.weekday != 6]  # 6 corresponds to Sunday
-
     return df
 
-uploaded_file = st.sidebar.file_uploader("Upload Daily Remark File", type="xlsx")
+# File uploader
+uploaded_file = st.file_uploader("Choose an Excel file", type=['xlsx'])
 
 if uploaded_file is not None:
+    # Load the data
     df = load_data(uploaded_file)
+    
+    # Create summary table
+    summary_table = pd.DataFrame(columns=[
+        'Date', 'ENVIRONMENT', 'COLLECTOR', 'TOTAL CONNECTED', 'TOTAL ACCOUNT', 'TOTAL TALK TIME'
+    ])
+    
+    # Process the data
+    # Convert date column to datetime
+    df['Date'] = pd.to_datetime(df.iloc[:, 2], format='%d-%m-%Y')
+    
+    # Group by Date and Environment
+    grouped = df.groupby([df['Date'].dt.date, df.iloc[:, 0]])  # Column C for date, Column A for environment
+    
+    # Calculate metrics
+    summary_data = []
+    for (date, env), group in grouped:
+        # Count unique collectors (Column E)
+        unique_collectors = group.iloc[:, 4].nunique()
+        
+        # Total connected (all rows excluding header)
+        total_connected = len(group)
+        
+        # Total unique accounts (Column D - Customer Name)
+        total_accounts = group.iloc[:, 3].nunique()
+        
+        # Convert talk time to timedelta and sum (Column I)
+        talk_times = pd.to_timedelta(group.iloc[:, 8].astype(str))
+        total_talk_time = talk_times.sum()
+        
+        # Format total talk time
+        total_seconds = int(total_talk_time.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        total_talk_time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        
+        summary_data.append({
+            'Date': date,
+            'ENVIRONMENT': env,
+            'COLLECTOR': unique_collectors,
+            'TOTAL CONNECTED': total_connected,
+            'TOTAL ACCOUNT': total_accounts,
+            'TOTAL TALK TIME': total_talk_time_str
+        })
+    
+    # Create summary table
+    summary_table = pd.DataFrame(summary_data)
+    
+    # Display the summary table
+    st.subheader("Summary Report")
+    st.dataframe(
+        summary_table.style.format({
+            'Date': '{:%d-%m-%Y}',
+            'COLLECTOR': '{:,.0f}',
+            'TOTAL CONNECTED': '{:,.0f}',
+            'TOTAL ACCOUNT': '{:,.0f}'
+        }),
+        height=500,
+        use_container_width=True
+    )
+    
+    # Add download button for the summary
+    csv = summary_table.to_csv(index=False)
+    st.download_button(
+        label="Download Summary as CSV",
+        data=csv,
+        file_name="dialer_summary_report.csv",
+        mime="text/csv",
+    )
+else:
+    st.info("Please upload an Excel file to generate the report.")
 
-    # Exclude rows where STATUS contains 'BP' (Broken Promise) or 'ABORT'
-    df = df[~df['Status'].str.contains('ABORT', na=False)]
-
-    # Exclude rows where REMARK contains certain keywords or phrases
-    excluded_remarks = [
-        "Broken Promise",
-        "New files imported", 
-        "Updates when case reassign to another collector", 
-        "NDF IN ICS", 
-        "FOR PULL OUT (END OF HANDLING PERIOD)", 
-        "END OF HANDLING PERIOD"
-    ]
-    df = df[~df['Remark'].str.contains('|'.join(excluded_remarks), case=False, na=False)]
-
-    # Exclude rows where 'Debtor' contains "DEFAULT_LEAD_"
-    df = df[~df['Debtor'].str.contains('DEFAULT_LEAD_', na=False)]
-
-    # Check if data is empty after filtering
-    if df.empty:
-        st.warning("No valid data available after filtering.")
-    else:
-        # Function to generate the summary table for a specific balance range and date
-        def generate_balance_summary(df, balance_range_name, lower_limit, upper_limit):
-            summary_table = pd.DataFrame(columns=[ 
-                'Date', 'Balance Range', 'ACCOUNTS', 'TOTAL DIALED', 'PENETRATION RATE (%)', 'CONNECTED #', 
-                'CONNECTED RATE (%)', 'CONNECTED ACC', 'PTP ACC', 'PTP RATE', 'CALL DROP #', 
-                'SYSTEM DROP', 'CALL DROP RATIO #', 'TOTAL PTP AMOUNT', 'TOTAL BALANCE'
-            ])
-
-            # Filter data for current balance range
-            balance_filtered_group = df[(df['Balance'] >= lower_limit) & (df['Balance'] <= upper_limit)]
-
-            # Exclude rows where "Call Status" contains "Others"
-            balance_filtered_group = balance_filtered_group[~balance_filtered_group['Call Status'].str.contains('Others', na=False)]
-
-            # Group by Date
-            for date, group in balance_filtered_group.groupby(df['Date'].dt.date):
-                # Calculate the various metrics
-                accounts = group[group['Remark Type'].isin(['Predictive', 'Follow Up', 'Outgoing'])]['Account No.'].nunique()
-                total_dialed = group[group['Remark Type'].isin(['Predictive', 'Follow Up', 'Outgoing'])]['Account No.'].count()
-                connected = group[group['Call Status'] == 'CONNECTED']['Account No.'].nunique()
-                penetration_rate = (total_dialed / accounts * 100) if accounts != 0 else None
-                connected_acc = group[group['Call Status'] == 'CONNECTED']['Account No.'].count()
-                connected_rate = (connected_acc / total_dialed * 100) if total_dialed != 0 else None
-                ptp_acc = group[(group['Status'].str.contains('PTP', na=False)) & (group['PTP Amount'] != 0)]['Account No.'].nunique()
-                ptp_rate = (ptp_acc / connected * 100) if connected != 0 else None
-                system_drop = group[(group['Status'].str.contains('DROPPED', na=False)) & (group['Remark By'] == 'SYSTEM')]['Account No.'].count()
-                call_drop_count = group[(group['Status'].str.contains('NEGATIVE CALLOUTS - DROP CALL', na=False)) & 
-                                        (~group['Remark By'].str.upper().isin(['SYSTEM']))]['Account No.'].count()
-                call_drop_ratio = (system_drop / connected_acc * 100) if connected_acc != 0 else None
-
-                # Calculate the TOTAL PTP AMOUNT and TOTAL BALANCE
-                # First, filter the rows where PTP Amount is not zero or NaN
-                ptp_data = group[group['PTP Amount'].notna() & (group['PTP Amount'] != 0)]
-
-                # Sum the PTP Amount for unique Account No.
-                total_ptp_amount = ptp_data.groupby('Account No.')['PTP Amount'].sum().sum()
-
-                # Sum the Balance for those same unique Account No.'s
-                total_balance = ptp_data.groupby('Account No.')['Balance'].sum().sum()
-
-                summary_table = pd.concat([summary_table, pd.DataFrame([{
-                    'Date': date,
-                    'Balance Range': balance_range_name,
-                    'ACCOUNTS': accounts,
-                    'TOTAL DIALED': total_dialed,
-                    'PENETRATION RATE (%)': f"{round(penetration_rate)}%" if penetration_rate is not None else None,
-                    'CONNECTED #': connected,
-                    'CONNECTED RATE (%)': f"{round(connected_rate)}%" if connected_rate is not None else None,
-                    'CONNECTED ACC': connected_acc,
-                    'PTP ACC': ptp_acc,
-                    'PTP RATE': f"{round(ptp_rate)}%" if ptp_rate is not None else None,
-                    'CALL DROP #': call_drop_count,
-                    'SYSTEM DROP': system_drop,
-                    'CALL DROP RATIO #': f"{round(call_drop_ratio)}%" if call_drop_ratio is not None else None,
-                    'TOTAL PTP AMOUNT': total_ptp_amount,
-                    'TOTAL BALANCE': total_balance,
-                }])], ignore_index=True)
-
-            return summary_table
-
-        # Balance ranges to consider
-        balance_ranges = [
-            ('0.00 - 49,999.99', 0.00, 49999.99),  # Updated range
-            ('50,000.00 - 99,999.99', 50000, 99999.99),
-            ('100,000.00 - UP', 100000, float('inf'))
-        ]
-
-        # Display results for each balance range, grouped by Date
-        for range_name, lower_limit, upper_limit in balance_ranges:
-            st.subheader(f"Summary for Balance Range: {range_name}")
-            balance_summary = generate_balance_summary(df, range_name, lower_limit, upper_limit)
-
-            if not balance_summary.empty:
-                st.dataframe(balance_summary)
-            else:
-                st.warning(f"No data available for the {range_name} range.")
+# Add some basic styling to the table
+st.markdown(
+    """
+    <style>
+    thead tr th {
+        color: white !important;
+        background-color: #4A4A4A !important;
+    }
+    tbody tr:nth-child(odd) {
+        background-color: #3A3A3A;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
