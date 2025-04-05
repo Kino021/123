@@ -4,7 +4,7 @@ import datetime
 from io import BytesIO
 from pandas import ExcelWriter
 
-st.set_page_config(layout="wide", page_title="Daily Remark Summary", page_icon="📊", initial_sidebar_state="expanded")
+st.set_page_config(layout="wide", page_title="BANK REPORT", page_icon="📊", initial_sidebar_state="expanded")
 
 st.title('Daily Remark Summary')
 
