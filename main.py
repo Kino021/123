@@ -18,6 +18,12 @@ def load_data(uploaded_file):
 
 uploaded_file = st.sidebar.file_uploader("Upload Daily Remark File", type="xlsx")
 
+def sanitize_sheet_name(name):
+    """Truncate to 31 characters and remove invalid characters."""
+    invalid_chars = r'[:\\/*?[\]]'
+    name = ''.join(c for c in name if c not in invalid_chars)  # Remove invalid chars
+    return name[:31]  # Truncate to 31 characters
+
 def to_excel(df_dict):
     output = BytesIO()
     with ExcelWriter(output, engine='xlsxwriter', date_format='yyyy-mm-dd') as writer:
@@ -68,6 +74,7 @@ def to_excel(df_dict):
         })
         
         for sheet_name, df in df_dict.items():
+            sheet_name = sanitize_sheet_name(sheet_name)  # Sanitize the sheet name
             df_for_excel = df.copy()
             for col in ['PENETRATION RATE (%)', 'CONNECTED RATE (%)', 'PTP RATE', 'CALL DROP RATIO #']:
                 df_for_excel[col] = df_for_excel[col].str.rstrip('%').astype(float)
@@ -218,9 +225,9 @@ if uploaded_file is not None:
         result = {}
         balance_bins = [
             (0.00, 9999.99, "0-9999.99"),
-            (10000.00, 49999.99, "10000-49999.99"),
-            (50000.00, 99999.99, "50000-99999.99"),
-            (100000.00, float('inf'), "100000+")
+            (10000.00, 49999.99, "10K-49K"),
+            (50000.00, 99999.99, "50K-99K"),
+            (100000.00, float('inf'), "100K+")
         ]
         
         for min_bal, max_bal, label in balance_bins:
