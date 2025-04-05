@@ -21,8 +21,8 @@ uploaded_file = st.sidebar.file_uploader("Upload Daily Remark File", type="xlsx"
 def sanitize_sheet_name(name):
     """Truncate to 31 characters and remove invalid characters."""
     invalid_chars = r'[:\\/*?[\]]'
-    name = ''.join(c for c in name if c not in invalid_chars)  # Remove invalid chars
-    return name[:31]  # Truncate to 31 characters
+    name = ''.join(c for c in name if c not in invalid_chars)
+    return name[:31]
 
 def to_excel(df_dict):
     output = BytesIO()
@@ -74,7 +74,7 @@ def to_excel(df_dict):
         })
         
         for sheet_name, df in df_dict.items():
-            sheet_name = sanitize_sheet_name(sheet_name)  # Sanitize the sheet name
+            sheet_name = sanitize_sheet_name(sheet_name)
             df_for_excel = df.copy()
             for col in ['PENETRATION RATE (%)', 'CONNECTED RATE (%)', 'PTP RATE', 'CALL DROP RATIO #']:
                 df_for_excel[col] = df_for_excel[col].str.rstrip('%').astype(float)
@@ -221,7 +221,7 @@ if uploaded_file is not None:
             result[f"Cycle {cycle}"] = calculate_summary(cycle_df, remark_types, manual_correction)
         return result
 
-    def get_balance_summary(df, remark_types, manual_correction=False):
+    def get_balance_summary(df, remark_types):
         result = {}
         balance_bins = [
             (0.00, 9999.99, "0-9999.99"),
@@ -233,7 +233,7 @@ if uploaded_file is not None:
         for min_bal, max_bal, label in balance_bins:
             balance_df = df[(df['BALANCE'] >= min_bal) & (df['BALANCE'] <= max_bal)]
             if not balance_df.empty:
-                result[f"Balance {label}"] = calculate_summary(balance_df, remark_types, manual_correction)
+                result[f"Balance {label}"] = calculate_summary(balance_df, remark_types)
         return result
 
     combined_summary = calculate_summary(df, ['Predictive', 'Follow Up', 'Outgoing'])
@@ -241,8 +241,7 @@ if uploaded_file is not None:
     manual_summary = calculate_summary(df, ['Outgoing'], manual_correction=True)
     predictive_cycle_summaries = get_cycle_summary(df, ['Predictive', 'Follow Up'])
     manual_cycle_summaries = get_cycle_summary(df, ['Outgoing'], manual_correction=True)
-    predictive_balance_summaries = get_balance_summary(df, ['Predictive', 'Follow Up'])
-    manual_balance_summaries = get_balance_summary(df, ['Outgoing'], manual_correction=True)
+    overall_balance_summaries = get_balance_summary(df, ['Predictive', 'Follow Up', 'Outgoing'])
 
     st.write("## Overall Combined Summary Table")
     st.write(combined_summary)
@@ -267,14 +266,8 @@ if uploaded_file is not None:
                 st.subheader(f"Summary for {cycle}")
                 st.write(table)
 
-    st.write("## Per Balance Predictive Summary Tables")
-    for balance, table in predictive_balance_summaries.items():
-        with st.container():
-            st.subheader(f"Summary for {balance}")
-            st.write(table)
-
-    st.write("## Per Balance Manual Summary Tables")
-    for balance, table in manual_balance_summaries.items():
+    st.write("## Per Balance Overall Summary Tables")
+    for balance, table in overall_balance_summaries.items():
         with st.container():
             st.subheader(f"Summary for {balance}")
             st.write(table)
@@ -285,8 +278,7 @@ if uploaded_file is not None:
         'Manual Summary': manual_summary,
         **{f"Predictive {k}": v for k, v in predictive_cycle_summaries.items() if "Cycle na" not in k.lower()},
         **{f"Manual {k}": v for k, v in manual_cycle_summaries.items() if "Cycle na" not in k.lower()},
-        **{f"Predictive {k}": v for k, v in predictive_balance_summaries.items()},
-        **{f"Manual {k}": v for k, v in manual_balance_summaries.items()}
+        **{k: v for k, v in overall_balance_summaries.items()}  # No prefix for overall balance
     }
 
     st.download_button(
