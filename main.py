@@ -272,6 +272,7 @@ if uploaded_file is not None:
             st.subheader(f"Summary for {balance}")
             st.write(table)
 
+    # Download button for all summaries
     excel_data = {
         'Combined Summary': combined_summary,
         'Predictive Summary': predictive_summary,
@@ -285,5 +286,19 @@ if uploaded_file is not None:
         label="Download All Summaries as Excel",
         data=to_excel(excel_data),
         file_name=f"Daily_Remark_Summary_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    # Additional download button for only overall summaries
+    overall_excel_data = {
+        'Combined Summary': combined_summary,
+        'Predictive Summary': predictive_summary,
+        'Manual Summary': manual_summary
+    }
+
+    st.download_button(
+        label="Download Overall Summaries as Excel",
+        data=to_excel(overall_excel_data),
+        file_name=f"Overall_Daily_Remark_Summary_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
