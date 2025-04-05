@@ -6,7 +6,7 @@ from pandas import ExcelWriter
 
 st.set_page_config(layout="wide", page_title="BANK REPORT", page_icon="📊", initial_sidebar_state="expanded")
 
-st.title('Daily Remark Summary')
+st.title('BANK REPORT')
 
 @st.cache_data
 def load_data(uploaded_file):
