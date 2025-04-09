@@ -32,7 +32,8 @@ def filter_dataframe(df):
     df = df[~df['CALL STATUS'].str.contains('OTHERS', case=False, na=False)]
     
     df['CARD NO.'] = df['CARD NO.'].astype(str)
-    df['CYCLE'] = df['CARD NO.'].str[:2].fillna('Unknown')
+    # Modified: Use full CARD NO. as CYCLE instead of first 2 characters
+    df['CYCLE'] = df['CARD NO.'].fillna('Unknown')
     return df
 
 @lru_cache(maxsize=128)
