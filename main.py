@@ -66,8 +66,7 @@ def to_excel(df_dict):
             sheet_name = sanitize_sheet_name(sheet_name)
             df_for_excel = df.copy()
             for col in ['PENETRATION RATE (%)', 'CONNECTED RATE (%)', 'PTP RATE', 'CALL DROP RATIO #']:
-                if col in df_for_excel.columns:
-                    df_for_excel[col] = df_for_excel[col].str.rstrip('%').astype(float) / 100
+                df_for_excel[col] = df_for_excel[col].str.rstrip('%').astype(float) / 100
             
             df_for_excel.to_excel(writer, sheet_name=sheet_name, index=False, startrow=1)
             worksheet = writer.sheets[sheet_name]
@@ -95,16 +94,6 @@ def to_excel(df_dict):
 @st.cache_data
 def calculate_summary(df, remark_types, manual_correction=False):
     df_filtered = df[df['REMARK TYPE'].isin(remark_types)].copy()
-    if df_filtered.empty:
-        st.warning(f"No data found for remark types {remark_types}. Returning empty summary.")
-        columns = [
-            'DATE', 'CLIENT', 'COLLECTORS', 'ACCOUNTS', 'TOTAL DIALED',
-            'PENETRATION RATE (%)', 'CONNECTED #', 'CONNECTED RATE (%)', 'CONNECTED ACC',
-            'TOTAL TALK TIME', 'TALK TIME AVE', 'CONNECTED AVE', 'PTP ACC', 'PTP RATE',
-            'TOTAL PTP AMOUNT', 'TOTAL BALANCE', 'CALL DROP #', 'SYSTEM DROP', 'CALL DROP RATIO #'
-        ]
-        return pd.DataFrame(columns=columns)
-
     df_filtered['DATE'] = df_filtered['DATE'].dt.date
     
     summary_data = []
@@ -241,4 +230,3 @@ if uploaded_files:
                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 else:
     st.info("Please upload one or more Excel files to begin.")
-    
