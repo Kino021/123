@@ -66,7 +66,8 @@ def to_excel(df_dict):
             sheet_name = sanitize_sheet_name(sheet_name)
             df_for_excel = df.copy()
             for col in ['PENETRATION RATE (%)', 'CONNECTED RATE (%)', 'PTP RATE', 'CALL DROP RATIO #']:
-                df_for_excel[col] = df_for_excel[col].str.rstrip('%').astype(float) / 100
+                if col in df_for_excel.columns:
+                    df_for_excel[col] = df_for_excel[col].str.rstrip('%').astype(float) / 100
             
             df_for_excel.to_excel(writer, sheet_name=sheet_name, index=False, startrow=1)
             worksheet = writer.sheets[sheet_name]
@@ -93,8 +94,22 @@ def to_excel(df_dict):
 
 @st.cache_data
 def calculate_summary(df, remark_types, manual_correction=False):
+    # Filter by remark types
     df_filtered = df[df['REMARK TYPE'].isin(remark_types)].copy()
-    df_filtered['DATE'] = df_filtered['DATE'].dt.date
+    
+    # Define columns for the summary DataFrame
+    summary_columns = ['DATE', 'CLIENT', 'COLLECTORS', 'ACCOUNTS', 'TOTAL DIALED', 
+                       'PENETRATION RATE (%)', 'CONNECTED #', 'CONNECTED RATE (%)', 
+                       'CONNECTED ACC', 'TOTAL TALK TIME', 'TALK TIME AVE', 'CONNECTED AVE', 
+                       'PTP ACC', 'PTP RATE', 'TOTAL PTP AMOUNT', 'TOTAL BALANCE', 
+                       'CALL DROP #', 'SYSTEM DROP', 'CALL DROP RATIO #']
+    
+    # Check if DataFrame is empty or missing 'DATE'
+    if 'DATE' not in df_filtered.columns or df_filtered.empty:
+        return pd.DataFrame(columns=summary_columns)
+    
+    # Ensure 'DATE' is in the correct format
+    df_filtered['DATE'] = pd.to_datetime(df_filtered['DATE'], errors='coerce').dt.date
     
     summary_data = []
     for (date, client), group in df_filtered.groupby(['DATE', 'CLIENT']):
@@ -137,7 +152,11 @@ def calculate_summary(df, remark_types, manual_correction=False):
             'CALL DROP RATIO #': call_drop_ratio
         })
     
-    return pd.DataFrame(summary_data).sort_values(by=['DATE'])
+    # Create DataFrame and sort by 'DATE' if data exists
+    summary_df = pd.DataFrame(summary_data, columns=summary_columns)
+    if not summary_df.empty:
+        summary_df = summary_df.sort_values(by=['DATE'])
+    return summary_df
 
 def get_cycle_summary(df, remark_types, manual_correction=False):
     return {f"Cycle {cycle}": calculate_summary(df[df['CYCLE'] == cycle], remark_types, manual_correction)
