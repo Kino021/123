@@ -32,7 +32,6 @@ def filter_dataframe(df):
     df = df[~df['CALL STATUS'].str.contains('OTHERS', case=False, na=False)]
     
     df['CARD NO.'] = df['CARD NO.'].astype(str)
-    # Modified: Use full CARD NO. as CYCLE instead of first 2 characters
     df['CYCLE'] = df['CARD NO.'].fillna('Unknown')
     return df
 
@@ -95,21 +94,17 @@ def to_excel(df_dict):
 
 @st.cache_data
 def calculate_summary(df, remark_types, manual_correction=False):
-    # Filter by remark types
     df_filtered = df[df['REMARK TYPE'].isin(remark_types)].copy()
     
-    # Define columns for the summary DataFrame
     summary_columns = ['DATE', 'CLIENT', 'COLLECTORS', 'ACCOUNTS', 'TOTAL DIALED', 
                        'PENETRATION RATE (%)', 'CONNECTED #', 'CONNECTED RATE (%)', 
                        'CONNECTED ACC', 'TOTAL TALK TIME', 'TALK TIME AVE', 'CONNECTED AVE', 
                        'PTP ACC', 'PTP RATE', 'TOTAL PTP AMOUNT', 'TOTAL BALANCE', 
                        'CALL DROP #', 'SYSTEM DROP', 'CALL DROP RATIO #']
     
-    # Check if DataFrame is empty or missing 'DATE'
     if 'DATE' not in df_filtered.columns or df_filtered.empty:
         return pd.DataFrame(columns=summary_columns)
     
-    # Ensure 'DATE' is in the correct format
     df_filtered['DATE'] = pd.to_datetime(df_filtered['DATE'], errors='coerce').dt.date
     
     summary_data = []
@@ -153,7 +148,6 @@ def calculate_summary(df, remark_types, manual_correction=False):
             'CALL DROP RATIO #': call_drop_ratio
         })
     
-    # Create DataFrame and sort by 'DATE' if data exists
     summary_df = pd.DataFrame(summary_data, columns=summary_columns)
     if not summary_df.empty:
         summary_df = summary_df.sort_values(by=['DATE'])
@@ -172,7 +166,6 @@ def get_balance_summary(df, remark_types):
 uploaded_files = st.sidebar.file_uploader("Upload Daily Remark Files", type="xlsx", accept_multiple_files=True)
 
 if uploaded_files:
-    # Process individual files
     all_dfs = []
     for file_idx, uploaded_file in enumerate(uploaded_files):
         st.write(f"### Processing File {file_idx + 1}: {uploaded_file.name}")
@@ -195,31 +188,47 @@ if uploaded_files:
                 st.write(f"#### File {file_idx + 1} - {title} Summary Table")
                 st.write(data)
             
-            for cycle_type, cycles in [('Predictive', summaries['predictive_cycles']), 
-                                     ('Manual', summaries['manual_cycles'])]:
-                st.write(f"#### File {file_idx + 1} - Per Cycle {cycle_type} Summary Tables")
-                for cycle, table in cycles.items():
-                    with st.container():
-                        st.subheader(f"Summary for {cycle}")
-                        st.write(table)
+            # Display Predictive Cycles
+            st.write(f"#### File {file_idx + 1} - Per Cycle Predictive Summary Tables")
+            for cycle, table in summaries['predictive_cycles'].items():
+                with st.container():
+                    st.subheader(f"Summary for {cycle}")
+                    st.write(table)
             
+            # Display Manual Cycles
+            st.write(f"#### File {file_idx + 1} - Per Cycle Manual Summary Tables")
+            for cycle, table in summaries['manual_cycles'].items():
+                with st.container():
+                    st.subheader(f"Summary for {cycle}")
+                    st.write(table)
+            
+            # Display Balance Summaries
             st.write(f"#### File {file_idx + 1} - Per Balance Overall Summary Tables")
             for balance, table in summaries['balance'].items():
                 with st.container():
                     st.subheader(f"Summary for {balance}")
                     st.write(table)
             
-            excel_data = {'Combined Summary': summaries['combined'], 'Predictive Summary': summaries['predictive'],
-                         'Manual Summary': summaries['manual'], **summaries['predictive_cycles'],
-                         **summaries['manual_cycles'], **summaries['balance']}
-            st.download_button(f"Download Summaries for File {file_idx + 1}", to_excel(excel_data),
-                            f"Daily_Remark_Summary_{uploaded_file.name.split('.')[0]}_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx",
-                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            # Ensure all summaries including predictive cycles are in the Excel download
+            excel_data = {
+                'Combined Summary': summaries['combined'],
+                'Predictive Summary': summaries['predictive'],
+                'Manual Summary': summaries['manual'],
+                **summaries['predictive_cycles'],  # Unpacks predictive cycles into the dictionary
+                **summaries['manual_cycles'],      # Unpacks manual cycles into the dictionary
+                **summaries['balance']             # Unpacks balance summaries into the dictionary
+            }
+            st.download_button(
+                f"Download Summaries for File {file_idx + 1}",
+                to_excel(excel_data),
+                f"Daily_Remark_Summary_{uploaded_file.name.split('.')[0]}_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
             st.write("---")
         else:
             st.warning(f"No valid data found in file: {uploaded_file.name}")
 
-    # Concatenated result
+    # Concatenated result for multiple files
     if len(all_dfs) > 1:
         st.write("### Concatenated Results for All Files")
         combined_df = pd.concat(all_dfs, ignore_index=True)
@@ -239,14 +248,20 @@ if uploaded_files:
             st.write(f"#### {title} Summary Table (All Files)")
             st.write(data)
         
-        excel_data = {'Combined Summary': combined_summaries['combined'],
-                     'Predictive Summary': combined_summaries['predictive'],
-                     'Manual Summary': combined_summaries['manual'],
-                     **combined_summaries['predictive_cycles'],
-                     **combined_summaries['manual_cycles'],
-                     **combined_summaries['balance']}
-        st.download_button("Download Concatenated Summaries", to_excel(excel_data),
-                         f"Daily_Remark_Summary_Combined_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx",
-                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        # Ensure all combined summaries including predictive cycles are in the Excel download
+        excel_data = {
+            'Combined Summary': combined_summaries['combined'],
+            'Predictive Summary': combined_summaries['predictive'],
+            'Manual Summary': combined_summaries['manual'],
+            **combined_summaries['predictive_cycles'],  # Unpacks predictive cycles
+            **combined_summaries['manual_cycles'],      # Unpacks manual cycles
+            **combined_summaries['balance']             # Unpacks balance summaries
+        }
+        st.download_button(
+            "Download Concatenated Summaries",
+            to_excel(excel_data),
+            f"Daily_Remark_Summary_Combined_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 else:
     st.info("Please upload one or more Excel files to begin.")
